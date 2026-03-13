@@ -310,6 +310,13 @@
       cursor: not-allowed;
     }
 
+    /* Custom styles for header button */
+    .btn-header {
+      padding: 0.5rem 1rem;
+      width: auto;
+      font-size: 0.8rem;
+    }
+
     .btn-icon {
       background: var(--card);
       color: var(--muted);
@@ -429,6 +436,7 @@
       }
     }
 
+    /* Responsive Layout Adjustments */
     @media (max-width: 1024px) {
       .main-grid {
         grid-template-columns: 1fr !important;
@@ -475,22 +483,34 @@
           <span class="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">Watermark</span>
           <span class="text-[var(--accent)]">Studio</span>
         </h1>
+        <span
+          class="text-[10px] font-normal text-[var(--muted)] bg-[var(--card)] px-1.5 py-0.5 rounded border border-[var(--border)]">BATCH</span>
       </div>
 
-      <!-- Undo/Redo Controls -->
-      <div class="flex items-center gap-2">
-        <button id="undoBtn" class="btn-icon" title="撤销水印操作 (Ctrl+Z)" disabled>
+      <div class="flex items-center gap-3">
+        <!-- Desktop Download Button (Visible > 1024px) -->
+        <button id="downloadBtnDesktop" class="btn-primary btn-header hidden lg:flex" disabled>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
+          <span>下载全部</span>
         </button>
-        <button id="redoBtn" class="btn-icon" title="重做水印操作 (Ctrl+Y)" disabled>
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
-          </svg>
-        </button>
+
+        <div class="flex items-center gap-2 border-l border-[var(--border)] pl-3 ml-1">
+          <button id="undoBtn" class="btn-icon" title="撤销水印操作 (Ctrl+Z)" disabled>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+          </button>
+          <button id="redoBtn" class="btn-icon" title="重做水印操作 (Ctrl+Y)" disabled>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+            </svg>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -635,7 +655,8 @@
           </label>
         </div>
 
-        <button id="downloadBtn" class="btn-primary mt-2" disabled>
+        <!-- Mobile Download Button (Visible < 1024px) -->
+        <button id="downloadBtnMobile" class="btn-primary mt-2 lg:hidden" disabled>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -787,7 +808,9 @@
       rotation: document.getElementById('rotation'),
       positionBtns: document.querySelectorAll('.position-btn'),
       tileMode: document.getElementById('tileMode'),
-      downloadBtn: document.getElementById('downloadBtn'),
+      // Buttons
+      downloadBtnDesktop: document.getElementById('downloadBtnDesktop'),
+      downloadBtnMobile: document.getElementById('downloadBtnMobile'),
       undoBtn: document.getElementById('undoBtn'),
       redoBtn: document.getElementById('redoBtn'),
       logoPreview: document.getElementById('logoPreview'),
@@ -804,13 +827,32 @@
     };
     const genId = () => Math.random().toString(36).substr(2, 9);
 
+    // Helper to update both download buttons
+    function setDownloadBtnState(disabled, isLoading = false, text = null) {
+      const btns = [els.downloadBtnDesktop, els.downloadBtnMobile];
+      btns.forEach(btn => {
+        if (btn) {
+          btn.disabled = disabled;
+          // Only update text for mobile button as desktop button text is short
+          if (btn.id === 'downloadBtnMobile' && text) {
+            btn.innerHTML = `<svg class="w-4 h-4 ${isLoading ? 'animate-spin' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> ${text}`;
+          }
+          // Handle loading state for desktop button
+          if (btn.id === 'downloadBtnDesktop' && isLoading) {
+            btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+          } else if (btn.id === 'downloadBtnDesktop') {
+            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> <span>下载全部</span>`;
+          }
+        }
+      });
+    }
+
     // --- Core Logic ---
 
     function handleFiles(files) {
       const validFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
       if (!validFiles.length) return;
 
-      // Record the length before adding new images
       const initialLength = state.images.length;
 
       validFiles.forEach(file => {
@@ -820,14 +862,12 @@
           img.onload = () => {
             state.images.push({ id: genId(), name: file.name, img: img });
 
-            // Logic: Select the first newly added image immediately
-            // Check: If the current number of images equals initial + 1, it means this is the first one loaded from the new batch
+            // If this is the first image loaded from this batch
             if (state.images.length === initialLength + 1) {
               selectImage(state.images.length - 1);
-            } else {
-              // For subsequent images, just update the list UI, keep current selection
-              updateGlobalUI();
             }
+            // Always update UI (count, empty hint, button states)
+            updateGlobalUI();
           };
           img.src = e.target.result;
         };
@@ -839,6 +879,7 @@
       state.currentIndex = index;
       renderCanvas();
       updateThumbnails();
+      updateGlobalUI(); // Ensure button states are updated
 
       const item = state.images[index];
       els.imageName.textContent = item ? item.name : '未选择';
@@ -855,7 +896,6 @@
           state.currentIndex = -1;
           els.canvas.classList.add('hidden');
           els.placeholder.classList.remove('hidden');
-          els.downloadBtn.disabled = true;
           els.imageName.textContent = '未选择';
           els.imageInfo.textContent = '';
         } else {
@@ -871,7 +911,10 @@
     function updateGlobalUI() {
       els.imageCount.textContent = state.images.length;
       els.emptyHint.style.display = state.images.length ? 'none' : 'block';
-      els.downloadBtn.disabled = state.images.length === 0;
+
+      // Update Download Buttons
+      setDownloadBtnState(state.images.length === 0 || state.processing);
+
       updateThumbnails();
     }
 
@@ -1125,11 +1168,11 @@
     });
 
     // --- Batch Download ---
-    els.downloadBtn.addEventListener('click', async () => {
+    async function handleDownload() {
       if (state.images.length === 0 || state.processing) return;
 
       state.processing = true;
-      els.downloadBtn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">...</svg> 处理中...`;
+      setDownloadBtnState(true, true, "处理中...");
 
       const zip = new JSZip();
       const offCanvas = document.createElement('canvas');
@@ -1191,8 +1234,12 @@
       link.click();
 
       state.processing = false;
-      els.downloadBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> 下载全部 (ZIP)`;
-    });
+      setDownloadBtnState(false, false, "下载全部 (ZIP)");
+    }
+
+    // Attach listeners to both buttons
+    els.downloadBtnDesktop.addEventListener('click', handleDownload);
+    els.downloadBtnMobile.addEventListener('click', handleDownload);
 
     function drawSingleOnCtx(ctx, w, h, angle, drawFn, elemW, elemH) {
       const { x, y } = getCoords(state.position, w, h, elemW, elemH);
