@@ -310,7 +310,6 @@
       cursor: not-allowed;
     }
 
-    /* Custom styles for header button */
     .btn-header {
       padding: 0.5rem 1rem;
       width: auto;
@@ -436,7 +435,6 @@
       }
     }
 
-    /* Responsive Layout Adjustments */
     @media (max-width: 1024px) {
       .main-grid {
         grid-template-columns: 1fr !important;
@@ -488,7 +486,6 @@
       </div>
 
       <div class="flex items-center gap-3">
-        <!-- Desktop Download Button (Visible > 1024px) -->
         <button id="downloadBtnDesktop" class="btn-primary btn-header hidden lg:flex" disabled>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -496,7 +493,6 @@
           </svg>
           <span>下载全部</span>
         </button>
-
         <div class="flex items-center gap-2 border-l border-[var(--border)] pl-3 ml-1">
           <button id="undoBtn" class="btn-icon" title="撤销水印操作 (Ctrl+Z)" disabled>
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -627,7 +623,8 @@
           <input type="range" id="rotation" min="-180" max="180" value="-30">
         </div>
 
-        <div class="control-group">
+        <!-- Position Control (Hidden in Tile Mode) -->
+        <div id="positionControl" class="control-group">
           <label class="control-label">位置</label>
           <div class="position-grid">
             <button class="position-btn" data-pos="top-left"></button>
@@ -655,7 +652,15 @@
           </label>
         </div>
 
-        <!-- Mobile Download Button (Visible < 1024px) -->
+        <!-- Density Control (Visible only in Tile Mode) -->
+        <div id="densityControl" class="control-group hidden">
+          <div class="flex justify-between">
+            <label class="control-label">水印密度</label>
+            <span id="densityValue" class="text-xs text-[var(--accent)]">50%</span>
+          </div>
+          <input type="range" id="density" min="10" max="100" value="50">
+        </div>
+
         <button id="downloadBtnMobile" class="btn-primary mt-2 lg:hidden" disabled>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -699,7 +704,8 @@
           rotation: document.getElementById('rotation').value,
           logoScale: document.getElementById('logoScale').value,
           position: state.position,
-          tileMode: state.tileMode
+          tileMode: state.tileMode,
+          density: document.getElementById('density').value
         };
       },
 
@@ -721,7 +727,14 @@
         document.getElementById('logoScale').value = snapshot.logoScale;
         document.getElementById('scaleValue').textContent = `${snapshot.logoScale}%`;
 
+        document.getElementById('density').value = snapshot.density;
+        document.getElementById('densityValue').textContent = `${snapshot.density}%`;
+
         document.getElementById('tileMode').checked = snapshot.tileMode;
+
+        // Toggle UI visibility based on tile mode
+        document.getElementById('densityControl').classList.toggle('hidden', !snapshot.tileMode);
+        document.getElementById('positionControl').classList.toggle('hidden', snapshot.tileMode);
 
         document.querySelectorAll('.position-btn').forEach(b => {
           b.classList.toggle('active', b.dataset.pos === snapshot.position);
@@ -807,7 +820,11 @@
       opacity: document.getElementById('opacity'),
       rotation: document.getElementById('rotation'),
       positionBtns: document.querySelectorAll('.position-btn'),
+      positionControl: document.getElementById('positionControl'),
       tileMode: document.getElementById('tileMode'),
+      density: document.getElementById('density'),
+      densityValue: document.getElementById('densityValue'),
+      densityControl: document.getElementById('densityControl'),
       // Buttons
       downloadBtnDesktop: document.getElementById('downloadBtnDesktop'),
       downloadBtnMobile: document.getElementById('downloadBtnMobile'),
@@ -827,17 +844,14 @@
     };
     const genId = () => Math.random().toString(36).substr(2, 9);
 
-    // Helper to update both download buttons
     function setDownloadBtnState(disabled, isLoading = false, text = null) {
       const btns = [els.downloadBtnDesktop, els.downloadBtnMobile];
       btns.forEach(btn => {
         if (btn) {
           btn.disabled = disabled;
-          // Only update text for mobile button as desktop button text is short
           if (btn.id === 'downloadBtnMobile' && text) {
             btn.innerHTML = `<svg class="w-4 h-4 ${isLoading ? 'animate-spin' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> ${text}`;
           }
-          // Handle loading state for desktop button
           if (btn.id === 'downloadBtnDesktop' && isLoading) {
             btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
           } else if (btn.id === 'downloadBtnDesktop') {
@@ -861,12 +875,9 @@
           const img = new Image();
           img.onload = () => {
             state.images.push({ id: genId(), name: file.name, img: img });
-
-            // If this is the first image loaded from this batch
             if (state.images.length === initialLength + 1) {
               selectImage(state.images.length - 1);
             }
-            // Always update UI (count, empty hint, button states)
             updateGlobalUI();
           };
           img.src = e.target.result;
@@ -879,7 +890,7 @@
       state.currentIndex = index;
       renderCanvas();
       updateThumbnails();
-      updateGlobalUI(); // Ensure button states are updated
+      updateGlobalUI();
 
       const item = state.images[index];
       els.imageName.textContent = item ? item.name : '未选择';
@@ -891,7 +902,6 @@
       const index = state.images.findIndex(img => img.id === id);
       if (index > -1) {
         state.images.splice(index, 1);
-
         if (state.images.length === 0) {
           state.currentIndex = -1;
           els.canvas.classList.add('hidden');
@@ -911,10 +921,7 @@
     function updateGlobalUI() {
       els.imageCount.textContent = state.images.length;
       els.emptyHint.style.display = state.images.length ? 'none' : 'block';
-
-      // Update Download Buttons
       setDownloadBtnState(state.images.length === 0 || state.processing);
-
       updateThumbnails();
     }
 
@@ -924,17 +931,14 @@
         const div = document.createElement('div');
         div.className = `thumbnail-item ${index === state.currentIndex ? 'active' : ''}`;
         div.onclick = () => selectImage(index);
-
         const img = document.createElement('img');
         img.src = item.img.src;
         div.appendChild(img);
-
         const removeBtn = document.createElement('div');
         removeBtn.className = 'thumbnail-remove';
         removeBtn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>`;
         removeBtn.onclick = (e) => removeImage(item.id, e);
         div.appendChild(removeBtn);
-
         els.thumbnailList.appendChild(div);
       });
     }
@@ -962,23 +966,23 @@
 
       const alpha = Math.max(0.05, Math.min(1, parseInt(els.opacity.value) / 100));
       const angle = parseInt(els.rotation.value) || 0;
+      const density = parseInt(els.density.value) || 50;
 
       ctx.save();
       ctx.globalAlpha = alpha;
 
       if (state.watermarkMode === 'image' && state.logo) {
-        renderImageWatermark(ctx, width, height, angle);
+        renderImageWatermark(ctx, width, height, angle, density);
       } else {
-        renderTextWatermark(ctx, width, height, angle);
+        renderTextWatermark(ctx, width, height, angle, density);
       }
 
       ctx.restore();
-
       els.placeholder.classList.add('hidden');
       canvas.classList.remove('hidden');
     }
 
-    function renderTextWatermark(ctx, w, h, angle) {
+    function renderTextWatermark(ctx, w, h, angle, density) {
       const text = els.watermarkText.value;
       if (!text.trim()) return;
 
@@ -991,13 +995,20 @@
       ctx.fillStyle = hexToRgba(color, 1);
 
       if (state.tileMode) {
-        drawTiled(ctx, w, h, angle, (x, y) => ctx.fillText(text, x, y), ctx.measureText(text).width + 50, size * 2);
+        const textWidth = ctx.measureText(text).width;
+        const multiplier = 0.5 + (density / 100) * 2.5;
+        const baseGapX = textWidth + 10;
+        const baseGapY = size * 1.2;
+        const gapX = Math.max(15, baseGapX * multiplier);
+        const gapY = Math.max(15, baseGapY * multiplier);
+
+        drawTiled(ctx, w, h, angle, (x, y) => ctx.fillText(text, x, y), gapX, gapY);
       } else {
         drawSingle(ctx, w, h, angle, (x, y) => ctx.fillText(text, x, y), ctx.measureText(text).width, size);
       }
     }
 
-    function renderImageWatermark(ctx, w, h, angle) {
+    function renderImageWatermark(ctx, w, h, angle, density) {
       const scale = Math.max(5, parseInt(els.logoScale.value)) / 100;
       let lw = state.logo.width;
       let lh = state.logo.height;
@@ -1009,7 +1020,13 @@
       lh *= ratio;
 
       if (state.tileMode) {
-        drawTiled(ctx, w, h, angle, (x, y) => ctx.drawImage(state.logo, x - lw / 2, y - lh / 2, lw, lh), lw + 30, lh + 30);
+        const multiplier = 0.5 + (density / 100) * 2.5;
+        const baseGapX = lw + 10;
+        const baseGapY = lh + 10;
+        const gapX = Math.max(15, baseGapX * multiplier);
+        const gapY = Math.max(15, baseGapY * multiplier);
+
+        drawTiled(ctx, w, h, angle, (x, y) => ctx.drawImage(state.logo, x - lw / 2, y - lh / 2, lw, lh), gapX, gapY);
       } else {
         drawSingle(ctx, w, h, angle, (x, y) => ctx.drawImage(state.logo, x - lw / 2, y - lh / 2, lw, lh), lw, lh, true);
       }
@@ -1019,7 +1036,6 @@
       let x, y;
       const cx = elemW / 2;
       const cy = elemH / 2;
-
       switch (pos) {
         case 'top-left': x = padding + cx; y = padding + cy; break;
         case 'top-center': x = w / 2; y = padding + cy; break;
@@ -1063,7 +1079,6 @@
       document.body.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
     });
     document.body.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
-
     els.fileInput.addEventListener('change', e => handleFiles(e.target.files));
 
     document.addEventListener('keydown', e => {
@@ -1149,6 +1164,11 @@
       renderCanvas();
     });
 
+    setupRangeHistory(els.density, () => {
+      els.densityValue.textContent = `${els.density.value}%`;
+      renderCanvas();
+    });
+
     els.positionBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const snapshot = history.capture();
@@ -1163,6 +1183,11 @@
     els.tileMode.addEventListener('change', () => {
       const snapshot = history.capture();
       state.tileMode = els.tileMode.checked;
+
+      // Toggle UI based on tile mode
+      els.densityControl.classList.toggle('hidden', !state.tileMode);
+      els.positionControl.classList.toggle('hidden', state.tileMode);
+
       history.pushSnapshot(snapshot);
       renderCanvas();
     });
@@ -1170,7 +1195,6 @@
     // --- Batch Download ---
     async function handleDownload() {
       if (state.images.length === 0 || state.processing) return;
-
       state.processing = true;
       setDownloadBtnState(true, true, "处理中...");
 
@@ -1188,6 +1212,7 @@
 
         const alpha = Math.max(0.05, Math.min(1, parseInt(els.opacity.value) / 100));
         const angle = parseInt(els.rotation.value) || 0;
+        const density = parseInt(els.density.value) || 50;
 
         offCtx.save();
         offCtx.globalAlpha = alpha;
@@ -1200,8 +1225,14 @@
           const maxLH = offCanvas.height * scale;
           const ratio = Math.min(maxLW / lw, maxLH / lh, 1);
           lw *= ratio; lh *= ratio;
+
           if (state.tileMode) {
-            drawTiledOnCtx(offCtx, offCanvas.width, offCanvas.height, angle, (x, y) => offCtx.drawImage(state.logo, x - lw / 2, y - lh / 2, lw, lh), lw + 30, lh + 30);
+            const multiplier = 0.5 + (density / 100) * 2.5;
+            const baseGapX = lw + 10;
+            const baseGapY = lh + 10;
+            const gapX = Math.max(15, baseGapX * multiplier);
+            const gapY = Math.max(15, baseGapY * multiplier);
+            drawTiledOnCtx(offCtx, offCanvas.width, offCanvas.height, angle, (x, y) => offCtx.drawImage(state.logo, x - lw / 2, y - lh / 2, lw, lh), gapX, gapY);
           } else {
             drawSingleOnCtx(offCtx, offCanvas.width, offCanvas.height, angle, (x, y) => offCtx.drawImage(state.logo, x - lw / 2, y - lh / 2, lw, lh), lw, lh);
           }
@@ -1215,8 +1246,14 @@
             offCtx.textBaseline = 'middle';
             offCtx.fillStyle = hexToRgba(color, 1);
             const metrics = offCtx.measureText(text);
+
             if (state.tileMode) {
-              drawTiledOnCtx(offCtx, offCanvas.width, offCanvas.height, angle, (x, y) => offCtx.fillText(text, x, y), metrics.width + 50, size * 2);
+              const multiplier = 0.5 + (density / 100) * 2.5;
+              const baseGapX = metrics.width + 10;
+              const baseGapY = size * 1.2;
+              const gapX = Math.max(15, baseGapX * multiplier);
+              const gapY = Math.max(15, baseGapY * multiplier);
+              drawTiledOnCtx(offCtx, offCanvas.width, offCanvas.height, angle, (x, y) => offCtx.fillText(text, x, y), gapX, gapY);
             } else {
               drawSingleOnCtx(offCtx, offCanvas.width, offCanvas.height, angle, (x, y) => offCtx.fillText(text, x, y), metrics.width, size);
             }
@@ -1237,7 +1274,6 @@
       setDownloadBtnState(false, false, "下载全部 (ZIP)");
     }
 
-    // Attach listeners to both buttons
     els.downloadBtnDesktop.addEventListener('click', handleDownload);
     els.downloadBtnMobile.addEventListener('click', handleDownload);
 
